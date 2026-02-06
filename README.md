@@ -14,6 +14,43 @@ This project simulates a simple computer system, including a CPU with a basic in
 *   **Byte Ordering**: Little-endian.
 *   **Instruction Format**: 16-bit instructions consisting of a 4-bit opcode and a 12-bit operand.
 
+## System Flowchart
+
+The following diagram illustrates the instruction execution cycle of the emulator:
+
+```mermaid
+graph TD
+    Start([Start Emulator]) --> Init[Initialize PC, AC, Flags & Memory]
+    Init --> Fetch[Fetch 16-bit Instruction at PC]
+    Fetch --> Decode[Decode 4-bit Opcode & 12-bit Operand]
+    Decode --> Execute{Execute Opcode}
+    
+    Execute -- "START (0000)" --> SetState[cpuState = true]
+    Execute -- "LOAD/ADD/SUB/MUL" --> RegOp[Update AC with Immediate]
+    Execute -- "LOADM/ADDM/SUBM/MULM" --> MemRead[Read from Cache/Memory to AC]
+    Execute -- "STORE (0011)" --> MemWrite[Write AC to Cache/Memory]
+    Execute -- "CMPM (0100)" --> Compare[Update Flag Register]
+    Execute -- "CJMP (0101)" --> CondJump[Jump if Flag > 0]
+    Execute -- "JMP (0110)" --> UncondJump[Set PC to Target Address]
+    Execute -- "DISP (1101)" --> Display[Print Accumulator Value]
+    Execute -- "HALT (1110)" --> Halt[cpuState = false]
+    
+    SetState --> IncPC[Increment PC by 2]
+    RegOp --> IncPC
+    MemRead --> IncPC
+    MemWrite --> IncPC
+    Compare --> IncPC
+    Display --> IncPC
+    Halt --> IncPC
+    
+    CondJump --> Loop{cpuState == true?}
+    UncondJump --> Loop
+    IncPC --> Loop
+    
+    Loop -- Yes --> Fetch
+    Loop -- No --> End([End Execution])
+```
+
 ## Instruction Set Architecture (ISA)
 
 The emulator supports the following 15 instructions:
@@ -35,6 +72,66 @@ The emulator supports the following 15 instructions:
 | `1100` | **MULM** | AC *= Memory[address] (cached) |
 | `1101` | **DISP** | Print Accumulator (AC) value |
 | `1110` | **HALT** | Stop execution |
+
+## Code Structure (UML)
+
+The internal architecture follows a modular design, separating memory management, caching logic, and the central processing unit:
+
+```mermaid
+classDiagram
+    class CPUEmulator {
+        -Memory memory
+        -Cache cache
+        -boolean cpuState
+        -boolean singleStep
+        -boolean debug
+        -short pc
+        -short ac
+        -short flag
+        -short offset
+        -Scanner step
+        +CPUEmulator()
+        +CPUEmulator(short pcOffset, short loadOffset)
+        +debugMode(boolean state) void
+        +singleStepMode(boolean state) void
+        +getCpuState() boolean
+        +hitRatio() void
+        +loadProgram(short address, short[] arr) void
+        +displayProgram(short programLength) void
+        +executeNext() void
+        +execute(short inst) void
+    }
+
+    class Memory {
+        -int CAPACITY
+        -byte[] memory
+        +Memory()
+        +Memory(int capacity)
+        +size() int
+        +readByte(short address) byte
+        +readShort(short address) short
+        +writeByte(short address, byte value) void
+        +writeShort(short address, short value) void
+        +check(short address) void
+    }
+
+    class Cache {
+        -int CAPACITY
+        -short[][] cache
+        -double hit
+        -double miss
+        +Cache()
+        +Cache(int capacity)
+        +hitRatio() void
+        +miss() void
+        +write(short address, short value) void
+        +read(short address) byte
+        +contains(short address) boolean
+    }
+
+    CPUEmulator o-- Memory
+    CPUEmulator o-- Cache
+```
 
 ## File Formats
 
